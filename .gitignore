@@ -1,0 +1,12 @@
+target/
+*.class
+.classpath
+.project
+.settings/
+local.settings.json
+.vscode/
+.DS_Store
+.azure/
+.deploy/
+*.log
+*.lock
