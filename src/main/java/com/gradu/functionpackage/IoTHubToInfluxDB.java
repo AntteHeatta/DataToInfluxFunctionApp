@@ -11,37 +11,29 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-/**
- * Azure Functions with HTTP Trigger.
- */
 public class IoTHubToInfluxDB {
-    private static final String INFLUX_URL = "http://23.97.240.132:9096";
-    private static final String INFLUX_DB = "environment_data";
-
-    private static final InfluxDB influxDB = InfluxDBFactory.connect(INFLUX_URL);
 
     @FunctionName("IoTHubToInfluxDB")
     public void run(
             @EventHubTrigger(name = "message", eventHubName = "messages/events", connection = "IoTHubEndpoint", consumerGroup = "$Default") String[] messages,
             final ExecutionContext context) {
 
-        context.getLogger().info("Received " + messages.length + " message(s) from IoT Hub.");
+        String INFLUX_URL = System.getenv("INFLUX_URL");
+        String INFLUX_DB = System.getenv("INFLUX_DB");
+        String INFLUX_USER = System.getenv("INFLUX_USER");
+        String INFLUX_PASSWORD = System.getenv("INFLUX_PASSWORD");
 
+        if (INFLUX_URL == null || INFLUX_DB == null || INFLUX_USER == null || INFLUX_PASSWORD == null) {
+            context.getLogger().severe("Required environment variables are not set");
+            return;
+        }
+
+        InfluxDB influxDB = InfluxDBFactory.connect(INFLUX_URL, INFLUX_USER, INFLUX_PASSWORD);
         influxDB.setDatabase(INFLUX_DB);
-
-        context.getLogger().info("DB init successful, nice.");
 
         for (String message : messages) {
             try {
-                // Assume incoming messages are JSON
                 SensorData sensorData = parseSensorData(message);
-
-                context.getLogger().info("Creating Point with the following data:");
-                context.getLogger().info("Device ID: " + sensorData.getDeviceId());
-                context.getLogger().info("Temperature: " + sensorData.getTemperature());
-                context.getLogger().info("Humidity: " + sensorData.getHumidity());
-                context.getLogger().info("Luminosity: " + sensorData.getLuminosity());
-                context.getLogger().info("Pressure: " + sensorData.getPressure());
 
                 Point point = Point.measurement("sensor_data")
                         .addField("deviceId", sensorData.getDeviceId())
@@ -74,11 +66,9 @@ class SensorData {
     private float luminosity;
     private float pressure;
 
-    // Default constructor
     public SensorData() {
     }
 
-    // Constructor with parameters (optional)
     public SensorData(String deviceId, float temperature, float humidity, float luminosity, float pressure) {
         this.deviceId = deviceId;
         this.temperature = temperature;
@@ -87,7 +77,6 @@ class SensorData {
         this.pressure = pressure;
     }
 
-    // Getters and setters
     public String getDeviceId() {
         return deviceId;
     }
